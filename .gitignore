@@ -12,3 +12,5 @@ src/webdriver
 selenium-ide.pem
 selenium-ide.crx
 yarn-error.log
+.settings/
+.project

@@ -47,6 +47,22 @@ const getTagName = window.global.getTagName;
 
 let storedVars = new Object();
 
+/**
+ * loop status store
+ */
+let loopStore = {
+  'foreach': {
+    enable      : false,
+    stacker     : {},
+    reverseMap  : {}
+  },
+  'while': {
+    enable      : false,
+    stacker     : {},
+    reverseMap  : {}
+  }
+};
+
 let unicodeToKeys = {};
 
 function build_sendkeys_maps() {
@@ -350,6 +366,101 @@ Selenium.prototype.reset = function() {
   // todo: this.browserbot.reset()
   this.browserbot.selectWindow("null");
   this.browserbot.resetPopups();
+
+  this.resetForeach();
+  this.resetWhile();
+};
+
+Selenium.prototype.resetForeach = function() {
+  loopStore['foreach'] = {
+    enable       : true,
+    stacker      : {},
+    reverseMap   : {}
+  };
+
+  let stacker          = {};
+  let commands         = testCase.commands;
+  let commands_length = commands.length;
+  let command          = null;
+
+  let loop_check_row_stacker = [];
+  let loop_check_row = null;
+
+  for (let i = commands_length - 1;0 <= i;i--) {
+    command = commands[i];
+    if (command.type != 'command') {
+      continue;
+    }
+
+    switch (command.command.toLowerCase()) {
+      case "endforeach":
+        loop_check_row = i;
+        loop_check_row_stacker.push(loop_check_row);
+        stacker[loop_check_row] = {
+          startRow  : null,
+          pointer   : 0
+        };
+        break;
+      case "foreach":
+        loop_check_row = loop_check_row_stacker.pop();
+        stacker[loop_check_row].startRow = i;
+        break;
+    }
+  }
+
+  let stacker_reverse_map = {};
+  for (let index in stacker) {
+    stacker_reverse_map[stacker[index].startRow] = index;
+  }
+
+  loopStore['foreach'].stacker     = stacker;
+  loopStore['foreach'].reverseMap  = stacker_reverse_map;
+};
+
+Selenium.prototype.resetWhile = function() {
+  loopStore['where'] = {
+    enable      : true,
+    stacker     : {},
+    reverseMap  : {}
+  };
+
+  let stacker = {};
+  let commands = testCase.commands;
+  let commands_length = commands.length;
+  let command = null;
+
+  let loop_check_row_stacker = [];
+  let loop_check_row = null;
+
+  for (let i = commands_length - 1;0 <= i;i--) {
+    command = commands[i];
+    if (command.type != 'command') {
+      continue;
+    }
+
+    switch (command.command.toLowerCase()) {
+      case "endwhile":
+        loop_check_row = i;
+        loop_check_row_stacker.push(loop_check_row);
+        stacker[loop_check_row] = {
+          startRow  : null,
+          target    : null
+        };
+        break;
+      case "while":
+        loop_check_row = loop_check_row_stacker.pop();
+        stacker[loop_check_row].startRow = i;
+        break;
+    }
+  }
+
+  let stacker_reverse_map = {};
+  for (let index in stacker) {
+    stacker_reverse_map[stacker[index].start_row] = index;
+  }
+
+  loopStore['where'].stacker     = stacker;
+  loopStore['where'].reverseMap  = stacker_reverse_map;
 };
 
 Selenium.prototype.doVerifyText = function(locator, value) {
@@ -1602,7 +1713,7 @@ Selenium.prototype.getAlert = function() {
      * page's onload() event handler. In this case a visible dialog WILL be
      * generated and Selenium will hang until someone manually clicks OK.</p>
      * @return string The message of the most recent JavaScript alert
-     
+
      */
   if (!this.browserbot.hasAlerts()) {
     Assert.fail("There were no alerts");// eslint-disable-line no-undef
