@@ -1,3 +1,20 @@
+// Licensed to the Software Freedom Conservancy (SFC) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The SFC licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
 import { reaction } from "mobx";
 import PlaybackState, { PlaybackStates } from "../../stores/view/PlaybackState";
 import UiState from "../../stores/view/UiState";
@@ -24,9 +41,8 @@ function playAfterConnectionFailed() {
 
 function executionLoop() {
   (PlaybackState.currentPlayingIndex < 0) ? PlaybackState.setPlayingIndex(0) : PlaybackState.setPlayingIndex(PlaybackState.currentPlayingIndex + 1);
-  if (PlaybackState.currentPlayingIndex >= PlaybackState.currentRunningTest.commands.length && PlaybackState.isPlaying) PlaybackState.stopPlaying();
-  if (!PlaybackState.isPlaying || PlaybackState.paused) return false;
-  const { id, command, target, value } = PlaybackState.currentRunningTest.commands[PlaybackState.currentPlayingIndex];
+  if ((PlaybackState.currentPlayingIndex >= PlaybackState.runningQueue.length && PlaybackState.isPlaying) || (!PlaybackState.isPlaying || PlaybackState.paused)) return false;
+  const { id, command, target, value } = PlaybackState.runningQueue[PlaybackState.currentPlayingIndex];
   PlaybackState.setCommandState(id, PlaybackStates.Pending);
   if (isExtCommand(command)) {
     let upperCase = command.charAt(0).toUpperCase() + command.slice(1);
@@ -70,7 +86,7 @@ function catchPlayingError(message) {
 }
 
 function reportError(error) {
-  const { id } = PlaybackState.currentRunningTest.commands[PlaybackState.currentPlayingIndex];
+  const { id } = PlaybackState.runningQueue[PlaybackState.currentPlayingIndex];
   let message = error;
   if (error.message === "this.playingFrameLocations[this.currentPlayingTabId] is undefined") {
     message = "The current tab is invalid for testing (e.g. about:home), surf to a webpage before using the extension";
@@ -165,8 +181,8 @@ function doDomWait(res, domTime, domCount = 0) {
     });
 }
 
-function doCommand(implicitTime = Date.now(), implicitCount = 0) {
-  const { id, command, target, value } = PlaybackState.currentRunningTest.commands[PlaybackState.currentPlayingIndex];
+function doCommand(res, implicitTime = Date.now(), implicitCount = 0) {
+  const { id, command, target, value } = PlaybackState.runningQueue[PlaybackState.currentPlayingIndex];
 
   let p = new Promise(function(resolve, reject) {
     let count = 0;
@@ -202,12 +218,11 @@ function doCommand(implicitTime = Date.now(), implicitCount = 0) {
             if (implicitCount == 1) {
               implicitTime = Date.now();
             }
-            return doCommand(implicitTime, implicitCount);
+            PlaybackState.setCommandState(id, PlaybackStates.Pending, `Trying to find ${parsedTarget}...`);
+            return doCommand(false, implicitTime, implicitCount);
           }
         }
 
-        implicitCount = 0;
-        implicitTime = "";
         PlaybackState.setCommandState(id, PlaybackStates.Failed, result.result);
       } else {
         PlaybackState.setCommandState(id, PlaybackStates.Passed);
@@ -217,7 +232,7 @@ function doCommand(implicitTime = Date.now(), implicitCount = 0) {
 
 function doDelay() {
   return new Promise((res) => {
-    if (PlaybackState.currentPlayingIndex + 1 === PlaybackState.currentRunningTest.commands.length) {
+    if (PlaybackState.currentPlayingIndex + 1 === PlaybackState.runningQueue.length) {
       return res(true);
     } else {
       setTimeout(() => {

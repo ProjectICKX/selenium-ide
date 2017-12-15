@@ -6,6 +6,7 @@
   border-radius: 10px;
   background-color: #E8E8E8;
   border: 0;
+  max-width: 160px;
 }
 
 .progress::-webkit-progress-bar {
@@ -20,7 +21,7 @@
 }
 
 .progress.has-error::-webkit-progress-value {
-  background-color: #A62C26;
+  background-color: #DF0006;
 }
 
 .progress::-moz-progress-bar {
@@ -30,5 +31,5 @@
 }
 
 .progress.has-error::-moz-progress-bar {
-    background-color: #A62C26;
+    background-color: #DF0006;
 }
