@@ -6,9 +6,14 @@ build
 src/selenium
 src/atoms
 src/webdriver
+src/selenium-atoms
+src/third_party
+src/selenium-core-scripts
 .peru
 .idea
 .tern-port
 selenium-ide.pem
 selenium-ide.crx
 yarn-error.log
+dist/
+.web-extension-id

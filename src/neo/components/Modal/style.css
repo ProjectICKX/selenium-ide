@@ -24,6 +24,10 @@
   color: #4d4d4d;
 }
 
+.modal .right .btn {
+  margin-right: 0;
+}
+
 .modal-overlay {
   position: fixed;
   top: 0px;
@@ -31,4 +35,5 @@
   right: 0px;
   bottom: 0px; 
   background: rgba(0,0,0,0.65);
+  z-index: 1000;
 }
